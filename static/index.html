@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Realtime Voice Agent</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        margin: 2rem;
+      }
+      button {
+        padding: 0.5rem 1rem;
+        font-size: 1rem;
+      }
+      #status {
+        margin-top: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Realtime Voice Agent</h1>
+    <button id="start-btn">Start Listening</button>
+    <p id="status">Click "Start Listening" to speak.</p>
+
+    <script>
+      // Check if the browser supports Speech Recognition
+      window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!window.SpeechRecognition) {
+        document.getElementById("status").innerText =
+          "Sorry, your browser does not support Speech Recognition.";
+      } else {
+        const recognition = new window.SpeechRecognition();
+        recognition.interimResults = false; // Only process final results
+        recognition.lang = "en-US";
+
+        recognition.addEventListener("result", (event) => {
+          // Combine all the results into a single transcript
+          const transcript = Array.from(event.results)
+            .map((result) => result[0])
+            .map((result) => result.transcript)
+            .join("");
+          document.getElementById("status").innerText = "Heard: " + transcript;
+
+          // Send the transcript to your backend API
+          fetch("/api/voice", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ transcript: transcript }),
+          })
+            .then((response) => response.json())
+            .then((data) => {
+              const reply = data.reply;
+              document.getElementById("status").innerText = "Reply: " + reply;
+              // Use speech synthesis to speak out the reply
+              const utterance = new SpeechSynthesisUtterance(reply);
+              utterance.lang = "en-US";
+              window.speechSynthesis.speak(utterance);
+            })
+            .catch((err) => {
+              console.error(err);
+              document.getElementById("status").innerText = "Error processing voice.";
+            });
+        });
+
+        // Start listening when the button is clicked
+        document.getElementById("start-btn").addEventListener("click", () => {
+          document.getElementById("status").innerText = "Listening...";
+          recognition.start();
+        });
+      }
+    </script>
+  </body>
+</html>
